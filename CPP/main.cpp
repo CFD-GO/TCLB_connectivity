@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cstdlib>
 #include "lodepng.h"
 #include <vector>
 #include <string>
@@ -55,26 +56,37 @@ void pb_tick(const size_t i,const size_t n) {
 }
 
 
-int main() {
+int main(int argc, char** argv) {
+    // * Set up params in memory
+    unsigned int Lx, Ly, Lz; // ! Total Size
+    unsigned int dx, dy, dz; // ! Export cropped domain start
+    unsigned int nx, ny, nz; // ! Export cropped domain length
 
-    // Selection
-    unsigned int dx=0, dy=0, dz=0, nx=200, ny=200, nz=200; // Export only a cropped window
-    bool exportInteriorOnly = true; // Export only the interior cells
-    bool writeText = true; // Write text file with zero and ones
-    unsigned int Lx=128, Ly=128, Lz=128; // Total size
-    bool comp_sel_biggest = true; // If to select n biggest or n first components
-    size_t comp_sel = 1; // Number of components to export. Set to 0 for ALL    
+    bool exportInteriorOnly, writeText, comp_sel_biggest; // ! write interior, write for normal TCLB, export biggest components only
+    size_t comp_sel; // ! Number of components to export. Set to 0 for ALL    
     
     unsigned int error;
     char filename[1024];
     size_t count = 0;
     FILE* f = NULL;
-    
+
+    // * Parse my inputs:
+    if (argc != 16){
+        printf("input format required is: {files reg string}, {Lx}, {Ly}, {Lz},\n {dx}, {dy}, {dz},\n {nx}, {ny}, {nz},\n {interior}, {normGrid}, {biggest elements}, {number of elements}\n");
+    }
+        char* fileRegExp = argv[1];
+        Lx=atoi(argv[2]); Ly=atoi(argv[3]); Lz=atoi(argv[4]);
+        dx=atoi(argv[5]); dy=atoi(argv[6]); dz=atoi(argv[7]);
+        nx=atoi(argv[8]); ny=atoi(argv[9]); nz=atoi(argv[10]);
+        exportInteriorOnly = atoi(argv[11]);
+        writeText = atoi(argv[12]);
+        comp_sel_biggest = atoi(argv[13]);
+        comp_sel = atoi(argv[14]);
+        char* outstring = argv[15];
+
     printf("Generating interior:\n");
     for (long int z = 0; z<Lz; z++) {
-    //int z=0; {
-        //printf("File: %d\n",z);
-        sprintf(filename,"cut_%04ld.png",z+1);
+        sprintf(filename,fileRegExp,z+1);
         unsigned int width, height;
         std::vector<unsigned char> image;
         error = lodepng::decode(image, width, height, filename);
@@ -218,7 +230,10 @@ int main() {
     }
     
     if (writeText) {
-        f = fopen("frac1.txt","w");
+        char* txtString = (char*) malloc(strlen(outstring) + 4 + 1);
+        strcpy( txtString, outstring);
+        strcat( txtString, ".txt");
+        f = fopen(txtString,"w");
         printf("Constructing lattice set structure:\n");
         std::map< long int, std::map< long int, std::set< long int > > > latset;
         for (size_t i=0; i<lattice.size(); i++) {
@@ -308,7 +323,10 @@ int main() {
         pb_tick(i+1,lattice.size());
     }
     printf("Writing connectivity:\n");
-    f = fopen("frac1.cxn","w");
+    char* cxnString = (char*) malloc(strlen(outstring) + 4 + 1);
+    strcpy( cxnString, outstring);
+    strcat( cxnString, ".cxn");
+    f = fopen(cxnString,"w");
     fprintf(f,"LATTICESIZE %lu\n",lattice.size());
     fprintf(f,"BASE_LATTICE_DIM %d %d %d\n",20,20,20); // this is a mockup
     fprintf(f,"d 3\n");
@@ -344,7 +362,10 @@ int main() {
     }
     fclose(f);
     printf("Writing points:\n");
-    f = fopen("frac1.cell","w");
+    char* cellString = (char*) malloc(strlen(outstring) + 4 + 1);
+    strcpy( cellString, outstring);
+    strcat( cellString, ".cell");
+    f = fopen(cellString,"w");
     fprintf(f,"N_POINTS %lu\n",points.size());
     size_t cells = 0;
     for (size_t i=0; i<lattice.size(); i++) if (lattice[i].vtu_export) cells++;
